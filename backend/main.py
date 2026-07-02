@@ -25,6 +25,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from langgraph.errors import GraphRecursionError
+
 from app.graph import build_graph
 
 logging.basicConfig(level=logging.INFO)
@@ -67,12 +69,26 @@ def chat(req: ChatRequest):
         if req.birth_details:
             state_update["birth_details"] = req.birth_details.model_dump()
 
-        config = {"configurable": {"thread_id": req.session_id}}
+        # recursion_limit is the hard step budget: reasoner+tool steps beyond
+        # this raise GraphRecursionError instead of looping forever.
+        config = {
+            "configurable": {"thread_id": req.session_id},
+            "recursion_limit": 12,
+        }
         result = agent.invoke(state_update, config)
 
         reply = result["messages"][-1].content
         return {"reply": reply, "session_id": req.session_id}
 
+    except GraphRecursionError:
+        logger.warning("step budget exceeded for session %s", req.session_id)
+        return {
+            "reply": (
+                "I got a little tangled in the stars trying to work that out. "
+                "Could you rephrase, or give me your birth details again?"
+            ),
+            "session_id": req.session_id,
+        }
     except Exception:
         logger.exception("chat turn failed")
         return JSONResponse(
