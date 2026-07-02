@@ -1,0 +1,107 @@
+{
+  "model": "openai/gpt-oss-120b",
+  "results": [
+    {
+      "id": "GS-005",
+      "category": "chart_invalid",
+      "det_pass": true,
+      "checks": [
+        {
+          "name": "no_crash",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "not_called:compute_birth_chart",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "step_budget",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "nonempty_reply",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "judge": {},
+      "judge_avg": null,
+      "tool_calls": [],
+      "tokens_in": 1116,
+      "tokens_out": 193,
+      "latency_s": 1.58,
+      "crashed": false,
+      "reply": "Thank you for sharing your birth details! I\u2019m eager to explore your chart, but I noticed that\u202fFebruary\u202f30\u202fdoesn\u2019t exist on the calendar, so the date you provided isn\u2019t a valid one. Could you please double\u2011check the day (perhaps it\u2019s\u202fFebruary\u202f28\u202for\u202fMarch\u202f2) and let me know the correct date? Once we have a valid birth date, I\u2019ll be able to calculate your chart and share some gentle reflections. \ud83c\udf19\u2728"
+    },
+    {
+      "id": "GS-006",
+      "category": "chart_invalid",
+      "det_pass": true,
+      "checks": [
+        {
+          "name": "no_crash",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "step_budget",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "nonempty_reply",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "judge": {},
+      "judge_avg": null,
+      "tool_calls": [
+        "geocode_place"
+      ],
+      "tokens_in": 1033,
+      "tokens_out": 145,
+      "latency_s": 39.35,
+      "crashed": false,
+      "reply": "The stars flickered for a moment there - something went wrong on my side. Could you ask me that once more?"
+    },
+    {
+      "id": "GS-007",
+      "category": "chart_invalid",
+      "det_pass": true,
+      "checks": [
+        {
+          "name": "no_crash",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "not_called:compute_birth_chart",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "step_budget",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "nonempty_reply",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "judge": {},
+      "judge_avg": null,
+      "tool_calls": [],
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "latency_s": 0.42,
+      "crashed": false,
+      "reply": "The stars flickered for a moment there - something went wrong on my side. Could you ask me that once more?"
+    }
+  ]
+}

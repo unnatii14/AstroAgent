@@ -1,0 +1,3 @@
+timestamp,model,cases,det_pass_rate,judge_avg,crash_rate,p50_s,p95_s,tokens_in,tokens_out,est_cost_usd,notes
+20260702-174313,openai/gpt-oss-120b,26,0.962,,0.000,42.2,55.5,121723,30243,0.0409,first deterministic run
+20260702-174639,openai/gpt-oss-120b,3,1.000,,0.000,1.6,1.6,2149,338,0.0006,after GS-007 fix

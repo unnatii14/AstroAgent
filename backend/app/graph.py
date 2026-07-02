@@ -27,6 +27,8 @@ Why a custom tool node instead of langgraph.prebuilt.ToolNode:
 import json
 import logging
 import os
+import re
+import time
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_groq import ChatGroq
@@ -35,7 +37,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import tools_condition
 
 from .state import AgentState
-from .tools.chart import compute_birth_chart
+from .tools.chart import compute_birth_chart, validate_birth_input
 from .tools.geocode import geocode_place
 from .tools.transits import get_daily_transits
 
@@ -166,26 +168,49 @@ def build_graph():
             if birth
             else "\n\nThe user has not shared birth details yet."
         )
+
+        # Deterministic pre-validation (eval finding GS-007): if the saved
+        # details are impossible (future date, Feb 30...), tell the model
+        # explicitly so it asks the user instead of burning tool calls.
+        if birth:
+            _, err = validate_birth_input(birth.get("date"), birth.get("time"))
+            if err:
+                birth_note += (
+                    "\nWARNING: these saved birth details are INVALID: " + err
+                    + " Do NOT call any tools this turn - gently ask the user "
+                    "to correct their details first."
+                )
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT + birth_note}
         ] + state["messages"]
 
-        # One retry, then a graceful in-character fallback: an LLM/API hiccup
-        # (rate limit, malformed tool call, network) must never crash the turn.
-        try:
-            reply = llm_with_tools.invoke(messages)
-        except Exception as e:
-            logger.warning("LLM call failed (%s), retrying once", str(e)[:120])
+        # Rate-limit-aware retries, then a graceful in-character fallback.
+        # On 429 we honor the server's suggested wait (capped at 30s) so a
+        # busy moment degrades to "slower", not "broken" - this also keeps
+        # eval runs honest instead of poisoning them with fallback replies.
+        reply = None
+        for attempt in range(3):
             try:
                 reply = llm_with_tools.invoke(messages)
-            except Exception as e2:
-                logger.error("LLM call failed twice (%s), returning fallback", str(e2)[:120])
-                reply = AIMessage(
-                    content=(
-                        "The stars flickered for a moment there - something went "
-                        "wrong on my side. Could you ask me that once more?"
-                    )
+                break
+            except Exception as e:
+                msg = str(e)
+                if "429" in msg or "rate limit" in msg.lower():
+                    m = re.search(r"try again in ([0-9.]+)s", msg)
+                    wait = min(float(m.group(1)) + 1 if m else 10.0, 30.0)
+                    logger.warning("rate limited (attempt %d), waiting %.1fs", attempt + 1, wait)
+                    time.sleep(wait)
+                else:
+                    logger.warning("LLM call failed (%s), retrying", msg[:120])
+                    time.sleep(2)
+        if reply is None:
+            logger.error("LLM call failed after retries, returning fallback")
+            reply = AIMessage(
+                content=(
+                    "The stars flickered for a moment there - something went "
+                    "wrong on my side. Could you ask me that once more?"
                 )
+            )
         return {"messages": [reply]}
 
     graph = StateGraph(AgentState)
