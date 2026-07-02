@@ -490,3 +490,31 @@ button { font-family: var(--font-body); cursor: pointer; }
   padding: 1px 5px;
   border-radius: 4px;
 }
+
+/* ---------- streaming & tool activity ---------- */
+
+.thinking-head { display: flex; align-items: center; gap: 10px; }
+
+.activity-list {
+  list-style: none;
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--gold);
+  opacity: 0.85;
+}
+.activity-list li { animation: fadeUp 0.35s ease both; }
+.activity-list li.failed { color: var(--danger); }
+
+/* blinking caret at the end of a streaming reply */
+.cursor {
+  display: inline-block;
+  width: 7px; height: 15px;
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  background: var(--gold);
+  opacity: 0.7;
+  animation: blink 0.9s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }

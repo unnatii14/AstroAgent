@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { sendChatMessage, checkHealth } from "../api.js";
+import { useEffect, useRef, useState } from "react";
+import { sendChatMessage, streamChatMessage, checkHealth } from "../api.js";
 import MessageList from "./MessageList.jsx";
 import Composer from "./Composer.jsx";
 
-// The main conversation screen. History is persisted per session so a
-// returning user finds their conversation where they left it.
+// The main conversation screen. Streams replies token-by-token with live
+// tool activity; falls back to the non-streaming endpoint if the stream
+// can't start. History is persisted per session.
 export default function Chat({ birthDetails, sessionId, onEditDetails }) {
   const storageKey = `astro_history_${sessionId}`;
 
@@ -16,7 +17,9 @@ export default function Chat({ birthDetails, sessionId, onEditDetails }) {
     }
   });
   const [pending, setPending] = useState(false);
+  const [activity, setActivity] = useState([]); // live tool events this turn
   const [offline, setOffline] = useState(false);
+  const gotTextRef = useRef(false);
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(messages));
@@ -32,25 +35,65 @@ export default function Chat({ birthDetails, sessionId, onEditDetails }) {
     return () => { cancelled = true; };
   }, []);
 
+  function appendToken(text) {
+    gotTextRef.current = true;
+    setMessages((m) => {
+      const copy = [...m];
+      const last = copy[copy.length - 1];
+      if (last?.role === "assistant" && last.streaming) {
+        copy[copy.length - 1] = { ...last, content: last.content + text };
+      } else {
+        copy.push({ role: "assistant", content: text, streaming: true });
+      }
+      return copy;
+    });
+  }
+
+  function finishStreamingMessage() {
+    setMessages((m) =>
+      m.map((msg) => (msg.streaming ? { ...msg, streaming: undefined } : msg))
+    );
+  }
+
   async function send(text) {
     setMessages((m) => [...m, { role: "user", content: text }]);
     setPending(true);
+    setActivity([]);
+    gotTextRef.current = false;
+
     try {
-      const reply = await sendChatMessage({
+      await streamChatMessage({
         message: text,
         sessionId,
         birthDetails,
+        onToken: appendToken,
+        onTool: (evt) => setActivity((a) => [...a, evt]),
       });
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
-      setOffline(false); // a successful call proves we're connected
+      setOffline(false);
     } catch (err) {
-      // Soft in-chat error with a retry affordance — never a crash.
-      setMessages((m) => [
-        ...m,
-        { role: "system", content: err.message, retryText: text },
-      ]);
-      checkHealth().then((ok) => setOffline(!ok));
+      // If the stream never delivered text, try the simple endpoint once;
+      // only if that also fails do we show an error note.
+      if (!gotTextRef.current) {
+        try {
+          const reply = await sendChatMessage({ message: text, sessionId, birthDetails });
+          setMessages((m) => [...m, { role: "assistant", content: reply }]);
+          setOffline(false);
+        } catch (err2) {
+          setMessages((m) => [
+            ...m,
+            { role: "system", content: err2.message, retryText: text },
+          ]);
+          checkHealth().then((ok) => setOffline(!ok));
+        }
+      } else {
+        setMessages((m) => [
+          ...m,
+          { role: "system", content: err.message, retryText: text },
+        ]);
+      }
     } finally {
+      finishStreamingMessage();
+      setActivity([]);
       setPending(false);
     }
   }
@@ -87,7 +130,12 @@ export default function Chat({ birthDetails, sessionId, onEditDetails }) {
         </div>
       )}
 
-      <MessageList messages={messages} pending={pending} onRetry={retry} />
+      <MessageList
+        messages={messages}
+        pending={pending}
+        activity={activity}
+        onRetry={retry}
+      />
       <Composer onSend={send} disabled={pending} />
     </div>
   );
