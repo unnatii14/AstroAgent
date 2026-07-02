@@ -1,0 +1,18 @@
+# Core agent
+langgraph>=0.2
+langchain-anthropic>=0.3
+langchain-core>=0.3
+
+# API
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-dotenv>=1.0
+pydantic>=2.0
+
+# Astrology (Phase 2 — installed now so env is ready)
+pyswisseph>=2.10
+timezonefinder>=6.5
+geopy>=2.4
+
+# Eval harness (Phase 5)
+anthropic>=0.40

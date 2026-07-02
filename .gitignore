@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Secrets — never commit
+.env
+
+# Eval run artifacts (keep results log, ignore raw dumps)
+evals/runs/*.raw.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
