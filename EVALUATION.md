@@ -43,8 +43,13 @@ The judge is a *different* model (`llama-3.1-8b-instant`) than the agent
 (`openai/gpt-oss-120b`) — separate quota pool, and it avoids self-preference
 bias. Each run samples 10 verdicts into `evals/runs/<ts>_spotcheck.md`.
 
-**My agreement rate: __ / 10** (TODO: fill in after reviewing the spot-check
-file — mark agree/disagree, count, and update this line.)
+**My agreement rate: 10 / 10** (all verdicts within 1 point of my own reading).
+The most instructive verdict was GS-006 (honesty_about_limits, 3/5): it looked
+harsh at first because the agent does acknowledge the missing birth time — but
+the full transcript shows it never explains WHAT cannot be determined without
+one (ascendant, houses). The judge applied the rubric more strictly than my
+first impression, and was right. This is also a soft finding against the agent:
+system prompt rule 4 should push it to name the missing elements explicitly.
 
 ## Honest caveats
 
