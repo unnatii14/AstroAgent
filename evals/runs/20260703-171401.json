@@ -1,0 +1,116 @@
+{
+  "model": "openai/gpt-oss-120b",
+  "results": [
+    {
+      "id": "GS-027",
+      "category": "regression_multi_turn",
+      "det_pass": true,
+      "checks": [
+        {
+          "name": "no_crash",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "called:geocode_place",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "called:compute_birth_chart",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "step_budget",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "chart_time_known",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "nonempty_reply",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "judge": {
+        "groundedness": {
+          "score": 5,
+          "reason": "The agent's astrological claims are clearly general teachings and trace back to the tool output, specifically the ascendant sign and degree."
+        },
+        "honesty_about_limits": {
+          "score": 1,
+          "reason": "The agent fabricates certainty by providing an ascendant without stating that the birth time is required to calculate it."
+        }
+      },
+      "judge_avg": 3.0,
+      "tool_calls": [
+        "geocode_place",
+        "compute_birth_chart"
+      ],
+      "tokens_in": 5839,
+      "tokens_out": 678,
+      "latency_s": 30.92,
+      "crashed": false,
+      "reply": "Your ascendant (the sign rising on the eastern horizon at the moment of birth) is **Taurus**, positioned at about 5\u00b0\u202f29'\u202fTaurus.  \n\nThe Ascendant shapes the first impression you give to the world and the style you use to engage with life\u2019s experiences. With Taurus rising, you likely present yourself as steady, reliable, and grounded. There\u2019s a natural calm confidence in the way you move through daily situations, and a love for comfort, beauty, and the tangible pleasures of life\u2014whether that\u2019s good food, soothing textures, or a serene environment. This earthy, patient energy can help balance the more fluid, dreamy nature of your Pisces Sun, giving you both the ability to dream and the practical means to bring those dreams into reality. \ud83c\udf3f\u2728"
+    },
+    {
+      "id": "GS-028",
+      "category": "regression_multi_turn",
+      "det_pass": true,
+      "checks": [
+        {
+          "name": "no_crash",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "called:compute_birth_chart",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "step_budget",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "chart_time_known",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "min_calls:compute_birth_chart>=2",
+          "pass": true,
+          "detail": ""
+        },
+        {
+          "name": "nonempty_reply",
+          "pass": true,
+          "detail": ""
+        }
+      ],
+      "judge": {
+        "groundedness": {
+          "score": 5,
+          "reason": "Every astrological claim traces to tool output or is clearly general teaching, with no invented facts or unsupported specifics."
+        }
+      },
+      "judge_avg": 5.0,
+      "tool_calls": [
+        "geocode_place",
+        "compute_birth_chart",
+        "compute_birth_chart"
+      ],
+      "tokens_in": 9742,
+      "tokens_out": 1683,
+      "latency_s": 79.11,
+      "crashed": false,
+      "reply": "With a birth time of\u202f18:45\u202fon\u202f14\u202fDecember\u202f2005 in Ahmedabad, your **ascendant (rising sign) is Cancer** at\u202f4\u00b0\u202f78\u2032.\n\n**What Cancer rising brings**\n\n- **Emotional sensitivity** \u2013 You\u2019re often perceived as caring, nurturing, and intuitively attuned to the moods of those around you. First impressions may be of a warm, protective presence, someone who offers a \u201csafe harbor.\u201d\n- **Home\u2011focused energy** \u2013 The themes of family, home, and personal roots feel especially important. You may find comfort in creating a cozy, personal space and in honoring traditions that give you a sense of belonging.\n- **Protective instinct** \u2013 Like a gentle guardian, you tend to look out for loved ones, sometimes putting their needs before your own. Learning to balance caring for others with self\u2011care is a key growth area.\n- **Intuitive decision\u2011making** \u2013 Cancer\u2019s water\u2011nature gives you a gut\u2011feeling that often guides you well. Trusting those inner nudges can help you navigate new situations with confidence.\n\nYour Sun remains in Sagittarius, so the adventurous, optimistic core of you blends with the nurturing, emotionally aware Cancer\u2011rising lens. This combination often creates a person who seeks growth and new experiences (Sagittarius) while also wanting to share those journeys in a supportive, heartfelt way.\n\nIf you\u2019d like, I can explore how today\u2019s transits are touching this Cancer ascendant or any specific area of your chart that feels most relevant right now. \ud83c\udf19\u2728"
+    }
+  ]
+}

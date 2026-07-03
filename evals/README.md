@@ -34,6 +34,12 @@ Each line is one JSON object:
 ### Changelog
 
 - **v1** (2026-07-02): initial 26 cases, committed before feature work.
+- **v2** (2026-07-03): +GS-027, GS-028 — multi-turn regression guards for the
+  two conversation-state bugs found during development (birth time dropped
+  across turns; stale chart cache after the user edits details). Adds case
+  format `input.turns` and deterministic checks `chart_time_known` /
+  `min_calls`. Motivated by review finding: our best architecture story had
+  no regression test.
 
 ## Harness
 

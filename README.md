@@ -68,6 +68,13 @@ emits tool calls; a `recursion_limit` of 12 is the hard step budget.
   suggested wait (capped 30s) before falling back to an in-character apology.
 - **Streaming.** `/chat/stream` emits SSE events: `token` (text), `tool_call`
   / `tool_result` (live activity shown in the UI), `done` / `error`.
+- **No separate router node — a deliberate cut.** The brief's suggested path
+  mentions an intent-classifier node. With only three tools, the reasoner's
+  tool choice IS the intent classification; an explicit router would add one
+  full LLM call of latency and a new failure point without changing behavior.
+  The golden set records `expected.intent` per case, so if the tool count
+  grows and a router becomes worthwhile, the eval labels to assert it against
+  already exist.
 
 ## Stack
 
@@ -87,6 +94,33 @@ Golden set: 26 versioned cases in `evals/golden_set.jsonl` (written before the
 features). One command runs everything and appends to `evals/results.csv`.
 Latest scorecard: **26/26 deterministic, judge 4.81/5, 0% crashes** — full
 numbers and honest caveats in [EVALUATION.md](EVALUATION.md).
+
+## Stretch goals attempted
+
+- ✦ **Caching** — done: charts are computed once per session and cache-invalidated
+  when birth details change (see custom tool node).
+- ✦ **Memory across sessions** — partial: birth details and conversation history
+  persist in the browser and are re-sent with every request, so a returning
+  user is never re-asked; server-side graph memory is per-process (MemorySaver).
+- ✦ Second agent and human-in-the-loop — not attempted; core + eval took priority,
+  as the brief advises.
+
+## Security posture (take-home scope)
+
+What's protected today: the API key lives only in a server-side `.env` (never
+shipped to the browser, never committed); all input is Pydantic-validated with
+length caps; CORS is restricted to the local dev origins; the model's output
+is rendered through react-markdown (HTML is escaped, no XSS via replies);
+prompt-injection attempts - including via form fields - are part of the
+tested golden set; and `session_id` is a client-generated UUIDv4, i.e. a
+122-bit-random capability token that is not practically guessable.
+
+What production would need (deliberately out of scope for a take-home, listed
+so the gap is a decision rather than an oversight): real user identity (OAuth
+or signed session tokens) so a session can't be shared by copying an ID,
+per-user rate limiting on the API, HTTPS termination, durable server-side
+session storage with per-user isolation, and secret management beyond a
+`.env` file.
 
 ## Known limitations
 

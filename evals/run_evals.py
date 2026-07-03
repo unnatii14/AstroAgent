@@ -129,6 +129,22 @@ def run_deterministic_checks(case, facts, crashed):
                     detail = f"{ref['body']} lon {lon} vs ref {ref['longitude_deg']} (diff {diff:.2f}, tol {ref['tolerance_deg']})"
         checks.append(("chart_math_reference", ok, detail))
 
+    # Regression guard (the birth-time bug): the latest successful chart must
+    # know the time and contain an ascendant.
+    if det.get("chart_time_known"):
+        ok, detail = False, "no successful compute_birth_chart result found"
+        for r in facts["tool_results"].get("compute_birth_chart", []):
+            if r.get("ok"):
+                ok = bool(r.get("time_known")) and "ascendant" in r
+                detail = f"time_known={r.get('time_known')}, ascendant_present={'ascendant' in r}"
+        checks.append(("chart_time_known", ok, "" if ok else detail))
+
+    # Minimum call counts (e.g. cache invalidation must force a recompute).
+    for tool, n in (det.get("min_calls") or {}).items():
+        cnt = called.count(tool)
+        checks.append((f"min_calls:{tool}>={n}", cnt >= n,
+                       f"{tool} called {cnt}x, expected >= {n}" if cnt < n else ""))
+
     checks.append(("nonempty_reply", bool(facts["reply"].strip()), "final reply was empty" if not facts["reply"].strip() else ""))
     return checks
 
@@ -142,7 +158,7 @@ def judge_dimension(llm, case, reply, dimension):
         "You are a strict, consistent evaluation judge for an astrology chat agent. "
         "Score exactly ONE dimension of the reply below on a 1-5 scale.\n\n"
         f"DIMENSION: {dimension}\nRUBRIC: {rubric}\n\n"
-        f"USER MESSAGE: {case['input']['message']}\n"
+        f"USER MESSAGE: {case['input'].get('message') or ' / '.join(t['message'] for t in case['input'].get('turns', []))}\n"
         f"BIRTH DETAILS PROVIDED: {json.dumps(case['input'].get('birth_details'))}\n"
         f"EXPECTED BEHAVIOR (reference): {case['expected']['behavior']}\n\n"
         f"AGENT REPLY:\n{reply[:6000]}\n\n"
@@ -173,7 +189,7 @@ def main():
         raise SystemExit("GROQ_API_KEY missing - create .env from .env.example first.")
 
     from langchain_groq import ChatGroq
-    from app.graph import build_graph
+    from app.graph import build_graph, FALLBACK_REPLY
 
     cases = load_golden_set(ROOT / "evals" / "golden_set.jsonl")
     if args.only:
@@ -197,9 +213,10 @@ def main():
 
     results, latencies = [], []
     for i, case in enumerate(cases):
-        update = {"messages": [{"role": "user", "content": case["input"]["message"]}]}
-        if case["input"].get("birth_details"):
-            update["birth_details"] = case["input"]["birth_details"]
+        # A case is either single-turn (input.message) or multi-turn
+        # (input.turns = [{message, birth_details?}, ...]) on ONE thread -
+        # multi-turn cases regression-test conversation-state bugs.
+        turns = case["input"].get("turns") or [case["input"]]
         config = {
             "configurable": {"thread_id": f"eval-{case['id']}-{uuid.uuid4().hex[:6]}"},
             "recursion_limit": 12,
@@ -207,11 +224,16 @@ def main():
 
         t0 = time.perf_counter()
         crashed, messages = False, []
-        try:
-            out = agent.invoke(update, config)
-            messages = out["messages"]
-        except Exception:
-            crashed = True
+        for turn in turns:
+            update = {"messages": [{"role": "user", "content": turn["message"]}]}
+            if turn.get("birth_details"):
+                update["birth_details"] = turn["birth_details"]
+            try:
+                out = agent.invoke(update, config)
+                messages = out["messages"]  # full history on this thread
+            except Exception:
+                crashed = True
+                break
         latency = time.perf_counter() - t0
         latencies.append(latency)
 
@@ -219,8 +241,15 @@ def main():
         checks = run_deterministic_checks(case, facts, crashed)
         det_pass = all(ok for _, ok, _ in checks)
 
+        # Infra-degraded turn: the LLM was unreachable (rate limit/outage) and
+        # the graph emitted its sentinel fallback. That is a fact about the
+        # infrastructure, not the agent - score it separately, never silently.
+        infra = FALLBACK_REPLY[:30] in facts["reply"]
+        if infra:
+            time.sleep(args.sleep * 4)  # extra cooldown before the next case
+
         judge_scores = {}
-        if judge_llm and facts["reply"]:
+        if judge_llm and facts["reply"] and not infra:
             for dim in case["checks"].get("judge", {}).get("dimensions", []):
                 score, reason = judge_dimension(judge_llm, case, facts["reply"], dim)
                 judge_scores[dim] = {"score": score, "reason": reason}
@@ -231,16 +260,16 @@ def main():
 
         results.append({
             "id": case["id"], "category": case["category"],
-            "det_pass": det_pass,
+            "det_pass": det_pass, "infra_degraded": infra,
             "checks": [{"name": n, "pass": ok, "detail": d} for n, ok, d in checks],
             "judge": judge_scores, "judge_avg": judge_avg,
             "tool_calls": facts["tool_calls"],
             "tokens_in": facts["tokens_in"], "tokens_out": facts["tokens_out"],
             "latency_s": round(latency, 2), "crashed": crashed,
-            "reply": facts["reply"][:2000],
+            "reply": facts["reply"][:6000],  # same window the judge sees
         })
 
-        flag = "PASS" if det_pass else "FAIL"
+        flag = "INFRA" if infra else ("PASS" if det_pass else "FAIL")
         javg = f"{judge_avg}" if judge_avg is not None else "-"
         print(f"  [{i+1:>2}/{len(cases)}] {case['id']} {case['category']:<22} det:{flag}  judge:{javg:<4} "
               f"tools:{len(facts['tool_calls'])}  {latency:5.1f}s")
@@ -248,9 +277,12 @@ def main():
 
     # ---------- scorecard ----------
     n = len(results)
-    det_rate = sum(r["det_pass"] for r in results) / n if n else 0
+    infra_cases = [r for r in results if r.get("infra_degraded")]
+    scored = [r for r in results if not r.get("infra_degraded")]
+    ns = len(scored)
+    det_rate = sum(r["det_pass"] for r in scored) / ns if ns else 0
     fail_rate = sum(r["crashed"] for r in results) / n if n else 0
-    all_j = [r["judge_avg"] for r in results if r["judge_avg"] is not None]
+    all_j = [r["judge_avg"] for r in scored if r["judge_avg"] is not None]
     judge_overall = round(sum(all_j) / len(all_j), 2) if all_j else None
     tok_in = sum(r["tokens_in"] for r in results)
     tok_out = sum(r["tokens_out"] for r in results)
@@ -262,7 +294,11 @@ def main():
     print("\n" + "=" * 62)
     print("SCORECARD")
     print("=" * 62)
-    print(f"  deterministic pass rate   {det_rate:6.1%}   ({sum(r['det_pass'] for r in results)}/{n})")
+    print(f"  deterministic pass rate   {det_rate:6.1%}   ({sum(r['det_pass'] for r in scored)}/{ns} scored)")
+    if infra_cases:
+        ids = " ".join(r["id"] for r in infra_cases)
+        print(f"  INFRA-DEGRADED (excluded) {len(infra_cases)} case(s): LLM unreachable, not agent failures")
+        print(f"    rerun when quota recovers:  python evals/run_evals.py --only {ids}")
     print(f"  judge avg (1-5)           {judge_overall if judge_overall is not None else '   -'}")
     print(f"  crash/failure rate        {fail_rate:6.1%}")
     print(f"  latency p50 / p95         {p50:5.1f}s / {p95:5.1f}s")
@@ -271,7 +307,7 @@ def main():
     print(f"  est. cost at list price   ${cost:.4f}")
     print("=" * 62)
 
-    failed = [r for r in results if not r["det_pass"]]
+    failed = [r for r in scored if not r["det_pass"]]
     if failed:
         print("\nFailed deterministic checks:")
         for r in failed:

@@ -29,6 +29,8 @@ import logging
 import os
 import re
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_groq import ChatGroq
@@ -42,6 +44,14 @@ from .tools.geocode import geocode_place
 from .tools.transits import get_daily_transits
 
 logger = logging.getLogger("astroagent.graph")
+
+# Sentinel fallback reply: emitted only when the LLM is unreachable after
+# retries. The eval harness detects it to separate infra failures from
+# genuine agent failures.
+FALLBACK_REPLY = (
+    "The stars flickered for a moment there - something went "
+    "wrong on my side. Could you ask me that once more?"
+)
 
 TOOLS = [geocode_place, compute_birth_chart, get_daily_transits]
 TOOLS_BY_NAME = {t.name: t for t in TOOLS}
@@ -126,6 +136,15 @@ def _make_tool_node():
                         k: v["longitude"]
                         for k, v in cached["data"]["planets"].items()
                     }
+                # "Today" means the USER's today, not UTC's: a 3am IST user
+                # would otherwise get yesterday's sky. Use the birth chart's
+                # timezone as the best available proxy for the user's.
+                if not args.get("date") and cached and cached.get("data", {}).get("timezone_used"):
+                    try:
+                        user_tz = ZoneInfo(cached["data"]["timezone_used"])
+                        args["date"] = datetime.now(user_tz).strftime("%Y-%m-%d")
+                    except Exception:
+                        pass  # fall back to the tool's UTC default
 
             try:
                 if name in TOOLS_BY_NAME:
@@ -196,21 +215,22 @@ def build_graph():
             except Exception as e:
                 msg = str(e)
                 if "429" in msg or "rate limit" in msg.lower():
-                    m = re.search(r"try again in ([0-9.]+)s", msg)
-                    wait = min(float(m.group(1)) + 1 if m else 10.0, 30.0)
-                    logger.warning("rate limited (attempt %d), waiting %.1fs", attempt + 1, wait)
-                    time.sleep(wait)
+                    # Parse "try again in 7.66s" AND "try again in 2h34m56s".
+                    m = re.search(r"try again in (?:(\d+)h)?(?:(\d+)m)?([0-9.]+)?s?", msg)
+                    h, mn, s = (m.groups() if m else (None, None, None))
+                    wait = (int(h or 0) * 3600) + (int(mn or 0) * 60) + float(s or 10.0) + 1
+                    if wait > 60:
+                        # Quota is gone for a long while - retrying is pointless.
+                        logger.error("rate limited for ~%.0fs, failing fast", wait)
+                        break
+                    logger.warning("rate limited (attempt %d), waiting %.1fs", attempt + 1, min(wait, 30.0))
+                    time.sleep(min(wait, 30.0))
                 else:
                     logger.warning("LLM call failed (%s), retrying", msg[:120])
                     time.sleep(2)
         if reply is None:
             logger.error("LLM call failed after retries, returning fallback")
-            reply = AIMessage(
-                content=(
-                    "The stars flickered for a moment there - something went "
-                    "wrong on my side. Could you ask me that once more?"
-                )
-            )
+            reply = AIMessage(content=FALLBACK_REPLY)
         return {"messages": [reply]}
 
     graph = StateGraph(AgentState)
