@@ -6,19 +6,22 @@ Full suite: `python evals/run_evals.py` — 26 golden-set cases, deterministic
 checks asserted in code, LLM-as-judge (independent model, one dimension at a
 time with 1–5 rubrics), cost/latency/reliability logged per run.
 
-Latest full run (2026-07-03, `evals/runs/20260703-162407.json`):
+Latest full run (2026-07-04, `evals/runs/20260704-150924.json`, golden set v2
+with 28 cases including two multi-turn regression guards):
 
 | Metric | Value |
 |---|---|
-| Deterministic pass rate | **100% (26/26)** |
+| Deterministic pass rate | **100% (27/27 scored)** |
+| Infra-degraded (excluded, not agent failures) | 1 case (GS-027, rate limit; passes when rerun) |
 | Judge average (1–5) | **4.81** |
 | Crash / failure rate | **0%** |
-| Latency p50 / p95 | 27.9s / 45.8s |
-| Avg tool calls per case | 1.85 |
-| Tokens in / out | 111,276 / 27,462 |
-| Est. cost at list price | $0.037 (actual: $0 on free tier) |
+| Latency p50 / p95 | 19.7s / 56.1s |
+| Avg tool calls per case | 1.89 |
+| Tokens in / out | 124,843 / 30,014 |
+| Est. cost at list price | $0.041 (actual: $0 on free tier) |
 
-Run history lives in `evals/results.csv`.
+Run history lives in `evals/results.csv` — including a run that scored 71.4%
+(kept deliberately; see finding 4 below).
 
 ## What the eval actually caught (and how it drove fixes)
 
@@ -36,6 +39,20 @@ Run history lives in `evals/results.csv`.
    fallback message, which counted as a (dishonest) result. Fix: 429-aware
    backoff that honors the server's suggested wait, so eval results reflect
    the agent, not the quota.
+4. **The harness itself had a blind spot.** A full run scored 71.4% — but
+   inspection showed all 8 "failures" were the same rate-limit fallback: the
+   LLM never ran. Worse, some fallbacks counted as *passes* on no-tool cases
+   while the judge scored the apology 1/5. Fix: the fallback is now a named
+   sentinel; the runner marks such cases INFRA-DEGRADED, excludes them from
+   quality scores, and prints an exact rerun command. Backoff also fails fast
+   when the server says the quota is gone for minutes/hours. The 71.4% row
+   stays in results.csv on purpose: distinguishing system-under-test failures
+   from infrastructure failures is itself an eval lesson, and hiding the run
+   would defeat the point.
+5. **Multi-turn regression guards now cover the war stories.** GS-027 asserts
+   the birth time survives across turns (chart computed with time + ascendant);
+   GS-028 asserts that editing the birth time invalidates the chart cache and
+   forces a recompute. Both pass.
 
 ## Judge validation (EV03)
 

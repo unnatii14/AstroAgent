@@ -4,3 +4,4 @@ timestamp,model,cases,det_pass_rate,judge_avg,crash_rate,p50_s,p95_s,tokens_in,t
 20260703-162407,openai/gpt-oss-120b,26,1.000,4.81,0.000,27.9,45.8,111276,27462,0.0373,full run with judge, backoff enabled
 20260703-171401,openai/gpt-oss-120b,2,1.000,4.0,0.000,55.0,30.9,15581,2361,0.0041,new multi-turn regression guards
 20260703-173244,openai/gpt-oss-120b,28,0.714,3.02,0.000,31.3,40.8,51940,13535,0.0179,v2 golden set, 28 cases
+20260704-150924,openai/gpt-oss-120b,28,1.000,4.81,0.000,19.7,56.1,124843,30014,0.0412,final clean run, v2 set

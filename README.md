@@ -90,10 +90,12 @@ emits tool calls; a `recursion_limit` of 12 is the hard step budget.
 
 ## Evaluation
 
-Golden set: 26 versioned cases in `evals/golden_set.jsonl` (written before the
-features). One command runs everything and appends to `evals/results.csv`.
-Latest scorecard: **26/26 deterministic, judge 4.81/5, 0% crashes** — full
-numbers and honest caveats in [EVALUATION.md](EVALUATION.md).
+Golden set: 28 versioned cases in `evals/golden_set.jsonl` (v1 written before
+the features; v2 added multi-turn regression guards). One command runs
+everything and appends to `evals/results.csv`. Latest scorecard: **100%
+deterministic (27/27 scored), judge 4.81/5, 0% crashes** — full numbers,
+the infra-vs-agent failure distinction, and honest caveats in
+[EVALUATION.md](EVALUATION.md).
 
 ## Stretch goals attempted
 
