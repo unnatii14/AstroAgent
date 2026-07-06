@@ -29,12 +29,23 @@ function loadOrCreateSessionId() {
 export default function App() {
   const [birthDetails, setBirthDetails] = useState(loadDetails);
   const [editing, setEditing] = useState(false);
-  const [sessionId] = useState(loadOrCreateSessionId);
+  const [sessionId, setSessionId] = useState(loadOrCreateSessionId);
 
   function saveDetails(details) {
     localStorage.setItem(DETAILS_KEY, JSON.stringify(details));
     setBirthDetails(details);
     setEditing(false);
+  }
+
+  // "New chat" must reset BOTH memories: the browser history AND the
+  // server-side graph thread. Rotating the session_id achieves the second -
+  // the backend keys its conversation memory by thread_id, so a fresh id
+  // means a genuinely blank slate. Birth details are kept (no re-asking).
+  function startNewChat() {
+    localStorage.removeItem(`astro_history_${sessionId}`);
+    const fresh = crypto.randomUUID();
+    localStorage.setItem(SESSION_KEY, fresh);
+    setSessionId(fresh);
   }
 
   const showWelcome = !birthDetails || editing;
@@ -46,9 +57,11 @@ export default function App() {
         <WelcomeForm initial={birthDetails} onSave={saveDetails} />
       ) : (
         <Chat
+          key={sessionId} /* remount on new session -> clean state */
           birthDetails={birthDetails}
           sessionId={sessionId}
           onEditDetails={() => setEditing(true)}
+          onNewChat={startNewChat}
         />
       )}
     </div>

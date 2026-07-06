@@ -6,7 +6,7 @@ import Composer from "./Composer.jsx";
 // The main conversation screen. Streams replies token-by-token with live
 // tool activity; falls back to the non-streaming endpoint if the stream
 // can't start. History is persisted per session.
-export default function Chat({ birthDetails, sessionId, onEditDetails }) {
+export default function Chat({ birthDetails, sessionId, onEditDetails, onNewChat }) {
   const storageKey = `astro_history_${sessionId}`;
 
   const [messages, setMessages] = useState(() => {
@@ -18,6 +18,7 @@ export default function Chat({ birthDetails, sessionId, onEditDetails }) {
   });
   const [pending, setPending] = useState(false);
   const [activity, setActivity] = useState([]); // live tool events this turn
+  const [confirmNew, setConfirmNew] = useState(false);
   const [offline, setOffline] = useState(false);
   const gotTextRef = useRef(false);
 
@@ -98,6 +99,17 @@ export default function Chat({ birthDetails, sessionId, onEditDetails }) {
     }
   }
 
+  // Two-tap confirm for "New chat" (no ugly browser confirm dialog):
+  // first click arms it for 3s, second click actually starts fresh.
+  function handleNewChat() {
+    if (!confirmNew) {
+      setConfirmNew(true);
+      setTimeout(() => setConfirmNew(false), 3000);
+      return;
+    }
+    onNewChat();
+  }
+
   // Retry resends the failed text and clears old error notes to keep the
   // conversation tidy.
   function retry(text) {
@@ -118,9 +130,18 @@ export default function Chat({ birthDetails, sessionId, onEditDetails }) {
             </p>
           </div>
         </div>
-        <button className="ghost-btn" onClick={onEditDetails}>
-          Edit birth details
-        </button>
+        <div className="header-actions">
+          <button
+            className={"ghost-btn" + (confirmNew ? " danger" : "")}
+            onClick={handleNewChat}
+            disabled={pending}
+          >
+            {confirmNew ? "Begin anew?" : "New chat"}
+          </button>
+          <button className="ghost-btn" onClick={onEditDetails}>
+            Edit birth details
+          </button>
+        </div>
       </header>
 
       {offline && (
