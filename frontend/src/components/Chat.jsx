@@ -23,7 +23,12 @@ export default function Chat({ birthDetails, sessionId, onEditDetails, onNewChat
   const gotTextRef = useRef(false);
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(messages));
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch {
+      // Storage full or blocked: the chat still works, it just won't
+      // survive a refresh. Never crash over persistence.
+    }
   }, [messages, storageKey]);
 
   // Proactive health check: tell the user the sky is unreachable BEFORE they
@@ -138,7 +143,7 @@ export default function Chat({ birthDetails, sessionId, onEditDetails, onNewChat
           >
             {confirmNew ? "Begin anew?" : "New chat"}
           </button>
-          <button className="ghost-btn" onClick={onEditDetails}>
+          <button className="ghost-btn" onClick={onEditDetails} disabled={pending}>
             Edit birth details
           </button>
         </div>

@@ -96,6 +96,21 @@ rather than prediction, and keep replies concise and conversational - prefer a
 few flowing paragraphs over long tables and heavy formatting."""
 
 
+def _window_messages(messages, limit=40):
+    """Bound what the LLM sees: full history lives in the checkpointer, but a
+    long conversation must not grow the prompt forever (cost + context limit).
+    We keep the most recent `limit` messages, then drop any leading orphan
+    ToolMessages - a tool result whose originating tool_call was cut off would
+    be rejected by the API.
+    """
+    if len(messages) <= limit:
+        return messages
+    recent = list(messages[-limit:])
+    while recent and recent[0].__class__.__name__ == "ToolMessage":
+        recent.pop(0)
+    return recent
+
+
 def _make_tool_node():
     """Build the custom tool node (closure keeps it stateless/testable)."""
 
@@ -201,7 +216,7 @@ def build_graph():
                 )
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT + birth_note}
-        ] + state["messages"]
+        ] + _window_messages(state["messages"])
 
         # Rate-limit-aware retries, then a graceful in-character fallback.
         # On 429 we honor the server's suggested wait (capped at 30s) so a

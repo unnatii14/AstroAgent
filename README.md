@@ -134,8 +134,13 @@ session storage with per-user isolation, and secret management beyond a
 - **`knowledge_lookup` (RAG) not implemented** — the brief requires 3 of 4
   tools; I chose the three that ground the chart math and cut scope honestly here.
 - **In-memory sessions.** Conversations persist in the browser (localStorage)
-  and graph state lives in a `MemorySaver` checkpointer — a server restart
-  clears server-side session memory. A SQLite checkpointer is the natural next step.
+  and graph state lives in a `MemorySaver` checkpointer — after a server
+  restart the UI still shows the old conversation but the agent no longer
+  remembers it (birth details and chart recover automatically since the client
+  re-sends them; conversational references don't). A SQLite checkpointer is
+  the natural fix. Related small caveats: two tabs sharing one session can
+  overwrite each other's saved history, and abandoned session threads live in
+  server memory until restart.
 - **Western tropical astrology only** (Placidus houses); no Vedic/sidereal mode.
 
 ## Repo map
