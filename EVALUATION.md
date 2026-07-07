@@ -2,7 +2,7 @@
 
 ## What was measured, and the latest scorecard
 
-Full suite: `python evals/run_evals.py` — 26 golden-set cases, deterministic
+Full suite: `python evals/run_evals.py` — 28 golden-set cases, deterministic
 checks asserted in code, LLM-as-judge (independent model, one dimension at a
 time with 1–5 rubrics), cost/latency/reliability logged per run.
 
