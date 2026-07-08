@@ -4,6 +4,8 @@ An agentic AI astrologer for **Aradhana** — a chat companion that computes rea
 birth charts from a Swiss Ephemeris, reasons over live planetary data with
 tools, and answers with warmth. Built with **LangGraph + FastAPI + React**.
 
+<video src="https://github.com/user-attachments/assets/701514a6-b847-49e1-85ef-54107eeefe7f" controls width="900"></video>
+
 ## Quick start
 
 Prerequisites: Python 3.11+, Node 18+, a free [Groq](https://console.groq.com) API key.
